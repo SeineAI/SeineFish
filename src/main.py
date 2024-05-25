@@ -8,6 +8,7 @@ from handlers import (
     handle_pull_request_review_event,
     handle_pull_request_review_thread_event,
 )
+import prompts
 
 
 # Define the GitHub webhook handler
@@ -46,9 +47,42 @@ async def handle_github_event(request):
     return web.Response(status=400, text="Unsupported event")
 
 
+async def handle_prompt_update(request):
+    """
+    Handle prompt update requests.
+
+    Args:
+        request (aiohttp.web.Request): The incoming HTTP request.
+
+    Returns:
+        aiohttp.web.Response: The HTTP response.
+    """
+    try:
+        data = await request.json()
+        prompt_name = data.get('prompt_name')
+        new_prompt = data.get('new_prompt')
+
+        if prompt_name and new_prompt:
+            if prompt_name in prompts.__dict__:
+                setattr(prompts, prompt_name, new_prompt)
+                return web.Response(
+                    text=f"Prompt '{prompt_name}' updated successfully.",
+                    status=200)
+            else:
+                return web.Response(text=f"Prompt '{prompt_name}' not found.",
+                                    status=404)
+        else:
+            return web.Response(
+                text="Missing 'prompt_name' or 'new_prompt' in request body.",
+                status=400)
+    except json.JSONDecodeError:
+        return web.Response(text="Invalid JSON in request body.", status=400)
+
+
 # Set up the web application
 app = web.Application()
 app.router.add_post('/github-webhook', handle_github_event)
+app.router.add_post('/update-prompt', handle_prompt_update)
 
 # Define the entry point for the GitHub Action
 if __name__ == '__main__':

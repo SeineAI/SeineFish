@@ -1,11 +1,15 @@
 ANALYZE_FILE_CHANGE_PROMPT = """
 Analyze the following file change in {filename}:
-Review should be formatted in markdown. Each comment can be cross referenced. The review should include the following:
+Review should be formatted in markdown. Each comment can be cross referenced. 
+The high level review should include the following:
 1. Briefly summarize the changes.
 2. What are the potential impacts of these changes? What benefits do they bring?
-3. Are there any issues with the changes? Is there anything that could break?
-4. Are there any alternative solutions?
-5. Are there any additional tests or documentation that should be written?
+3. Are there any alternative solutions?
+
+For each function or class that has been changed:
+- Are there any issues with the changes? Is there anything that could break?
+- Are there any additional tests or documentation that should be written?
+- Are there any potential performance issues?
 
 File content:
 {file_content}
