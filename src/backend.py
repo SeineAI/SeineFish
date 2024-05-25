@@ -36,7 +36,7 @@ class Backend:
                 "url": "https://us-south.ml.cloud.ibm.com",
                 "apikey": self.watsonx_api_key
             }
-            params = {}
+            params = {GenParams.MAX_NEW_TOKENS: 16384}
             return WatsonxLLM(credentials=credentials,
                               model="mistralai/mixtral-8x7b-instruct-v01",
                               params=params,
