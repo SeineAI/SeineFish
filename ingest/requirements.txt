@@ -1,0 +1,5 @@
+gitpython==3.1.30
+langchain-core==0.2.1
+openai==1.30.3
+faiss-cpu==1.7.3
+aiofiles==23.1.0
