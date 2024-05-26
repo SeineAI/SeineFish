@@ -184,13 +184,14 @@ async def analyze_function_change(filename, function_name,
         function_diff=function_diff)
 
     response = backend.generate(prompt)
-    review_text = response['choices'][0]['text'].strip()
+    review_text = response.strip()
     logger.info(f"Analysis for {function_name} in {filename}:\n{review_text}")
 
     return {'function_name': function_name, 'review': review_text}
 
 
-async def analyze_review_comment(repo_name, pr_number, comment_id):
+async def analyze_review_comment(repo_name, pr_number, comment_id, path,
+                                 position, commit_id):
     """
     Analyze a review comment.
 
@@ -200,16 +201,28 @@ async def analyze_review_comment(repo_name, pr_number, comment_id):
         comment_id (int): The ID of the review comment.
     """
     repo = github_client.get_repo(repo_name)
-    comment = repo.get_pull(pr_number).get_review_comment(comment_id)
+    pull_request = repo.get_pull(pr_number)
+    comment = pull_request.get_review_comment(comment_id)
     comment_body = comment.body
+    # remove @mentions from the comment body
+    comment_body = " ".join(
+        filter(lambda x: not x.startswith('@'), comment_body.split()))
+    logger.info(
+        f"Analyzing review comment {comment_id} in {repo_name} #{pr_number}:\n{comment_body}"
+    )
+
+    commit = repo.get_commit(commit_id)
 
     prompt = ANALYZE_REVIEW_COMMENT_PROMPT.format(comment_body=comment_body)
     response = backend.generate(prompt)
-    analysis = response['choices'][0]['text'].strip()
+    analysis = response.strip()
     logger.info(f"Analysis for review comment {comment_id}:\n{analysis}")
 
     # Post a reply to the comment with the analysis
-    comment.create_reply(body=analysis)
+    pull_request.create_comment(body=analysis,
+                                commit_id=commit,
+                                path=path,
+                                position=position)
 
 
 async def analyze_pull_request_review(repo_name, pr_number, review_id):
@@ -227,7 +240,7 @@ async def analyze_pull_request_review(repo_name, pr_number, review_id):
 
     prompt = ANALYZE_PULL_REQUEST_REVIEW_PROMPT.format(review_body=review_body)
     response = backend.generate(prompt)
-    analysis = response['choices'][0]['text'].strip()
+    analysis = response.strip()
     logger.info(f"Analysis for review {review_id}:\n{analysis}")
 
     # Post a reply to the review with the analysis
@@ -250,7 +263,7 @@ async def analyze_review_thread(repo_name, pr_number, thread_id):
     prompt = ANALYZE_REVIEW_THREAD_PROMPT.format(
         thread_comments="\n\n".join(thread_comments))
     response = backend.generate(prompt)
-    analysis = response['choices'][0]['text'].strip()
+    analysis = response.strip()
     logger.info(f"Analysis for review thread {thread_id}:\n{analysis}")
 
     # Post a reply to the thread with the analysis

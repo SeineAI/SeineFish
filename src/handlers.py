@@ -9,6 +9,7 @@ from utils import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 async def handle_pull_request_event(event):
     """
     Handle pull request events from GitHub.
@@ -26,6 +27,7 @@ async def handle_pull_request_event(event):
     if action in ['opened', 'edited', 'synchronize']:
         await review_pull_request(repo_name, pr_number)
 
+
 async def handle_pull_request_review_comment_event(event):
     """
     Handle pull request review comment events from GitHub.
@@ -37,12 +39,21 @@ async def handle_pull_request_review_comment_event(event):
     pr_number = event['pull_request']['number']
     comment_id = event['comment']['id']
     action = event['action']
+    commit_id = event['comment']['commit_id']
+    path = event['comment']['path']
+    position = event['comment']['position']
     logger.info(
-        f"Handling pull request review comment event: {repo_name} #{pr_number}, action: {action}, comment id: {comment_id}"
+        f"Handling pull request review comment event: {repo_name} #{pr_number}, action: {action}, comment id: {comment_id}, path: {path}, position: {position}"
     )
 
     if action in ['created', 'edited']:
-        await analyze_review_comment(repo_name, pr_number, comment_id)
+        await analyze_review_comment(repo_name=repo_name,
+                                     pr_number=pr_number,
+                                     comment_id=comment_id,
+                                     path=path,
+                                     position=position,
+                                     commit_id=commit_id)
+
 
 async def handle_pull_request_review_event(event):
     """
@@ -61,6 +72,7 @@ async def handle_pull_request_review_event(event):
 
     if action in ['submitted', 'edited']:
         await analyze_pull_request_review(repo_name, pr_number, review_id)
+
 
 async def handle_pull_request_review_thread_event(event):
     """
