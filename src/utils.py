@@ -204,6 +204,9 @@ async def analyze_review_comment(repo_name, pr_number, comment_id, path,
     pull_request = repo.get_pull(pr_number)
     comment = pull_request.get_review_comment(comment_id)
     comment_body = comment.body
+    # exit if @SeineSailor or @SeineFish is not in the comment
+    if "@SeineSailor" not in comment_body and "@SeineFish" not in comment_body:
+        return
     # remove @mentions from the comment body
     comment_body = " ".join(
         filter(lambda x: not x.startswith('@'), comment_body.split()))
