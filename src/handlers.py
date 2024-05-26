@@ -42,6 +42,7 @@ async def handle_pull_request_review_comment_event(event):
     commit_id = event['comment']['commit_id']
     path = event['comment']['path']
     position = event['comment']['position']
+    diff_hunk = event['comment']['diff_hunk']
     logger.info(
         f"Handling pull request review comment event: {repo_name} #{pr_number}, action: {action}, comment id: {comment_id}, path: {path}, position: {position}"
     )
@@ -52,7 +53,8 @@ async def handle_pull_request_review_comment_event(event):
                                      comment_id=comment_id,
                                      path=path,
                                      position=position,
-                                     commit_id=commit_id)
+                                     commit_id=commit_id,
+                                     diff_hunk=diff_hunk)
 
 
 async def handle_pull_request_review_event(event):

@@ -191,7 +191,7 @@ async def analyze_function_change(filename, function_name,
 
 
 async def analyze_review_comment(repo_name, pr_number, comment_id, path,
-                                 position, commit_id):
+                                 position, commit_id, diff_hunk):
     """
     Analyze a review comment.
 
@@ -213,7 +213,8 @@ async def analyze_review_comment(repo_name, pr_number, comment_id, path,
 
     commit = repo.get_commit(commit_id)
 
-    prompt = ANALYZE_REVIEW_COMMENT_PROMPT.format(comment_body=comment_body)
+    prompt = ANALYZE_REVIEW_COMMENT_PROMPT.format(comment_body=comment_body,
+                                                  diff_hunk=diff_hunk)
     response = backend.generate(prompt)
     analysis = response.strip()
     logger.info(f"Analysis for review comment {comment_id}:\n{analysis}")

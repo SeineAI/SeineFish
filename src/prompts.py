@@ -25,8 +25,10 @@ Changes:
 """
 
 ANALYZE_REVIEW_COMMENT_PROMPT = """
-Analyze the following pull request review comment:
+Analyze the following pull request review comment and write output in markdown:
 {comment_body}
+With the diff hunk:
+{diff_hunk}
 """
 
 ANALYZE_PULL_REQUEST_REVIEW_PROMPT = """
