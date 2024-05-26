@@ -1,16 +1,85 @@
-from langchain.document_loaders import GitLoader
+from langchain_core.document_loaders import BaseLoader
 from langchain.vectorstores import FAISS
 from langchain.embeddings import OpenAIEmbeddings
+from langchain_core.documents import Document
 import os
+import git
+from typing import Iterator, AsyncIterator
+import asyncio
 
 
-def load_and_index_git_repository(repo_path, branch, faiss_index_path):
+class GitRepoCommitsLoader(BaseLoader):
+    """A document loader that reads git repository commits."""
+
+    def __init__(self, repo_path: str) -> None:
+        """Initialize the loader with the path to the git repository.
+
+        Args:
+            repo_path: The path to the git repository.
+        """
+        self.repo_path = repo_path
+
+    def lazy_load(self) -> Iterator[Document]:
+        """A lazy loader that reads git repository commits.
+
+        Yields documents one by one for each commit in the repository.
+        """
+        repo = git.Repo(self.repo_path)
+        commits = list(repo.iter_commits())
+
+        for commit in commits:
+            commit_message = commit.message
+            commit_diff = commit.diff(create_patch=True)
+
+            diff_texts = []
+            for diff in commit_diff:
+                diff_texts.append(diff.diff.decode('utf-8'))
+
+            commit_diff_text = '\n'.join(diff_texts)
+            content = f"Commit Message:\n{commit_message}\n\nCommit Diff:\n{commit_diff_text}"
+
+            yield Document(page_content=content,
+                           metadata={
+                               "commit_hash": commit.hexsha,
+                               "author": commit.author.name,
+                               "date": commit.committed_datetime.isoformat()
+                           })
+
+    async def alazy_load(self) -> AsyncIterator[Document]:
+        """An async lazy loader that reads git repository commits."""
+
+        # Simulating async functionality (since gitpython does not support async)
+        def get_commits():
+            repo = git.Repo(self.repo_path)
+            return list(repo.iter_commits())
+
+        commits = await asyncio.to_thread(get_commits)
+
+        for commit in commits:
+            commit_message = commit.message
+            commit_diff = commit.diff(create_patch=True)
+
+            diff_texts = []
+            for diff in commit_diff:
+                diff_texts.append(diff.diff.decode('utf-8'))
+
+            commit_diff_text = '\n'.join(diff_texts)
+            content = f"Commit Message:\n{commit_message}\n\nCommit Diff:\n{commit_diff_text}"
+
+            yield Document(page_content=content,
+                           metadata={
+                               "commit_hash": commit.hexsha,
+                               "author": commit.author.name,
+                               "date": commit.committed_datetime.isoformat()
+                           })
+
+
+def load_and_index_git_repository(repo_path, faiss_index_path):
     """
     Loads documents from a Git repository and creates a FAISS index.
 
     Args:
         repo_path (str): The path to the Git repository.
-        branch (str): The branch of the Git repository to load.
         faiss_index_path (str): The path to save the FAISS index.
 
     Returns:
@@ -18,11 +87,11 @@ def load_and_index_git_repository(repo_path, branch, faiss_index_path):
     """
     # Check if the FAISS index already exists
     if not os.path.exists(faiss_index_path):
-        # Initialize the GitLoader with filtering options
-        loader = GitLoader(repo_path=repo_path, branch=branch)
+        # Initialize the GitRepoCommitsLoader
+        loader = GitRepoCommitsLoader(repo_path=repo_path)
 
         # Load documents from the git repository
-        documents = loader.load()
+        documents = list(loader.lazy_load())
 
         # Initialize the embeddings model
         embeddings = OpenAIEmbeddings()
@@ -31,12 +100,12 @@ def load_and_index_git_repository(repo_path, branch, faiss_index_path):
         vectorstore = FAISS.from_documents(documents, embeddings)
 
         # Save the vectorstore locally
-        vectorstore.save_local("faiss_index")
+        vectorstore.save_local(faiss_index_path)
 
     embeddings = OpenAIEmbeddings()
 
     # To load the vectorstore later
-    new_vectorstore = FAISS.load_local("faiss_index", embeddings)
+    new_vectorstore = FAISS.load_local(faiss_index_path, embeddings)
 
     return new_vectorstore
 
@@ -59,12 +128,10 @@ def similarity_search(vectorstore, query):
 if __name__ == "__main__":
     # Initialize Git repository
     repo_path = os.environ.get('REPO_PATH')
-    branch = 'main'
     faiss_index_path = "faiss_index"
 
     # Load and index the Git repository
-    vectorstore = load_and_index_git_repository(repo_path, branch,
-                                                faiss_index_path)
+    vectorstore = load_and_index_git_repository(repo_path, faiss_index_path)
 
     # Example similarity search
     query = "improve performance."
