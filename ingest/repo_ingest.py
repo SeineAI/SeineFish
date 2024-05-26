@@ -1,6 +1,6 @@
 from langchain_core.document_loaders import BaseLoader
-from langchain.vectorstores import FAISS
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 import os
 import git
@@ -134,8 +134,10 @@ if __name__ == "__main__":
     vectorstore = load_and_index_git_repository(repo_path, faiss_index_path)
 
     # Example similarity search
-    query = "improve performance."
+    query = "custom git commit loader"
     results = similarity_search(vectorstore, query)
 
     for result in results:
-        print(result.page_content)
+        # extract metadata and git commit sha
+        print(result.metadata)
+        print(result.page_content.split("\n")[1])
