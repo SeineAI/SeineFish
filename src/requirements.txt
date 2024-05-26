@@ -1,4 +1,4 @@
-aiohttp==3.8.3
+aiohttp==3.9.4
 PyGithub==1.54.1
 langchain==0.2.1
 ibm_watson_machine_learning
