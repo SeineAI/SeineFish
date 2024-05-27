@@ -8,6 +8,13 @@ from typing import Iterator, AsyncIterator
 import asyncio
 import json
 
+# Set the storage path
+storage_path = os.getenv("STORAGE_PATH", "/tmp")
+faiss_index_path = storage_path + "/faiss_index"
+latest_commit_path = storage_path + "/latest_commit.json"
+# Initialize Git repository
+repo_path = os.environ.get('REPO_PATH')
+
 
 class GitRepoCommitsLoader(BaseLoader):
     """A document loader that reads git repository commits."""
@@ -77,14 +84,14 @@ class GitRepoCommitsLoader(BaseLoader):
 
 def save_latest_commit(repo_path, commit_hash):
     """Saves the latest commit hash to a file."""
-    with open(f"latest_commit.json", "w") as f:
+    with open(latest_commit_path, "w") as f:
         json.dump({"latest_commit": commit_hash}, f)
 
 
 def load_latest_commit(repo_path):
     """Loads the latest commit hash from a file."""
     try:
-        with open(f"latest_commit.json", "r") as f:
+        with open(latest_commit_path, "r") as f:
             data = json.load(f)
             return data.get("latest_commit")
     except FileNotFoundError:
@@ -186,9 +193,6 @@ def similarity_search(vectorstore, query):
 
 
 if __name__ == "__main__":
-    # Initialize Git repository
-    repo_path = os.environ.get('REPO_PATH')
-    faiss_index_path = "faiss_index"
 
     # Load and index the Git repository
     vectorstore = load_and_index_git_repository(repo_path, faiss_index_path)
