@@ -41,15 +41,22 @@ SeineFish is a GitHub webhook designed to automatically review pull requests in 
 4. **Set up environment variables:**
    - Create a `.env` file in the project root directory.
    - Add the following environment variables to the `.env` file:
-     ```plaintext
-     GITHUB_TOKEN=<your_github_token>
-     OPENAI_API_KEY=<your_openai_api_key>  # Optional, if using OpenAI
-     WATSONX_API_KEY=<your_watsonx_api_key>  # Optional, if using WatsonX
-     ```
+   | Environment Variable    | Value                           |
+   |-------------------------|---------------------------------|
+   | GITHUB_TOKEN            | <your_github_token>             |
+   | OPENAI_API_KEY          | <your_openai_api_key>           |
+   | WATSONX_API_KEY         | <your_watsonx_api_key>          |
+   | WATSONX_PROJECT_ID      | <your_watsonx_project_id>       |
+   | REPO_OWNER              | <your_github_repo_owner>        |
+   | REPO_NAME               | <your_github_repo_name>         |
+   | REPO_PATH               | <your_git_repo_path>            |
+   | NGROK_WEB_ADDR          | http://localhost:4041/api/tunnels |
+   | WEBHOOK_ENDPOINT        | /github-webhook                 |
+   | WEBHOOK_PORT            | 8000                            |
 
 5. **Run the webhook server locally for testing:**
    ```bash
-   python review_bot.py
+   cd src; python main.py
    ```
 
 ## Usage
