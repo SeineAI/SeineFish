@@ -6,6 +6,7 @@ import os
 import git
 from typing import Iterator, AsyncIterator
 import asyncio
+import json
 
 
 class GitRepoCommitsLoader(BaseLoader):
@@ -74,6 +75,22 @@ class GitRepoCommitsLoader(BaseLoader):
                            })
 
 
+def save_latest_commit(repo_path, commit_hash):
+    """Saves the latest commit hash to a file."""
+    with open(f"latest_commit.json", "w") as f:
+        json.dump({"latest_commit": commit_hash}, f)
+
+
+def load_latest_commit(repo_path):
+    """Loads the latest commit hash from a file."""
+    try:
+        with open(f"latest_commit.json", "r") as f:
+            data = json.load(f)
+            return data.get("latest_commit")
+    except FileNotFoundError:
+        return None
+
+
 def load_and_index_git_repository(repo_path, faiss_index_path):
     """
     Loads documents from a Git repository and creates a FAISS index.
@@ -85,6 +102,14 @@ def load_and_index_git_repository(repo_path, faiss_index_path):
     Returns:
         FAISS: The loaded FAISS vectorstore.
     """
+    # Fetch latest commits from remote
+    repo = git.Repo(repo_path)
+    origin = repo.remote(name='origin')
+    origin.fetch()
+
+    # Initialize the embeddings model
+    embeddings = OpenAIEmbeddings()
+
     # Check if the FAISS index already exists
     if not os.path.exists(faiss_index_path):
         # Initialize the GitRepoCommitsLoader
@@ -93,21 +118,56 @@ def load_and_index_git_repository(repo_path, faiss_index_path):
         # Load documents from the git repository
         documents = list(loader.lazy_load())
 
-        # Initialize the embeddings model
-        embeddings = OpenAIEmbeddings()
-
         # Create a FAISS vectorstore from the loaded documents
         vectorstore = FAISS.from_documents(documents, embeddings)
 
         # Save the vectorstore locally
         vectorstore.save_local(faiss_index_path)
 
-    embeddings = OpenAIEmbeddings()
+        # Save the latest commit hash
+        if documents:
+            latest_commit = documents[0].metadata['commit_hash']
+            save_latest_commit(repo_path, latest_commit)
+    else:
+        # Load the existing FAISS index
+        vectorstore = FAISS.load_local(faiss_index_path, embeddings)
 
-    # To load the vectorstore later
-    new_vectorstore = FAISS.load_local(faiss_index_path, embeddings)
+        # Load the latest indexed commit
+        latest_commit = load_latest_commit(repo_path)
 
-    return new_vectorstore
+        # Load new commits from the git repository
+        new_documents = []
+        for commit in repo.iter_commits():
+            if commit.hexsha == latest_commit:
+                break
+            commit_message = commit.message
+            commit_diff = commit.diff(create_patch=True)
+
+            diff_texts = []
+            for diff in commit_diff:
+                diff_texts.append(diff.diff.decode('utf-8'))
+
+            commit_diff_text = '\n'.join(diff_texts)
+            content = f"Commit Message:\n{commit_message}\n\nCommit Diff:\n{commit_diff_text}"
+
+            new_documents.append(
+                Document(page_content=content,
+                         metadata={
+                             "commit_hash": commit.hexsha,
+                             "author": commit.author.name,
+                             "date": commit.committed_datetime.isoformat()
+                         }))
+
+        # Add new documents to the vectorstore
+        if new_documents:
+            vectorstore.add_documents(new_documents)
+            vectorstore.save_local(faiss_index_path)
+
+            # Save the latest commit hash
+            save_latest_commit(repo_path,
+                               new_documents[0].metadata['commit_hash'])
+
+    return vectorstore
 
 
 def similarity_search(vectorstore, query):
@@ -138,6 +198,5 @@ if __name__ == "__main__":
     results = similarity_search(vectorstore, query)
 
     for result in results:
-        # extract metadata and git commit sha
         print(result.metadata)
-        print(result.page_content.split("\n")[1])
+        print(result.page_content)
