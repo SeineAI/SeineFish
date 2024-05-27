@@ -79,3 +79,24 @@ def extract_function_code(file_content: str, function_name: str) -> str:
                     "    raise") or line == "":
                 inside_function = False
     return function_code
+
+def similarity_search(vectorstore, query):
+    """
+    Performs a similarity search on the FAISS vectorstore.
+
+    Args:
+        vectorstore (FAISS): The FAISS vectorstore to search.
+        query (str): The search query.
+
+    Returns:
+        list: The search results.
+    """
+    
+    # Load and index the Git repository
+    vectorstore = load_and_index_git_repository(repo_path, faiss_index_path)
+
+    
+    results = similarity_search(vectorstore, query)
+    results = vectorstore.similarity_search(query)
+    return results
+

@@ -10,6 +10,11 @@ from prompts import (
     ANALYZE_REVIEW_THREAD_PROMPT,
 )
 from helpers import get_file_content, find_changed_functions, extract_function_code
+import sys
+
+sys.path.append('..')
+from ingest.git_repo_loader import load_and_index_git_repository
+from ingest.similarity_search import similarity_search
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,6 +27,11 @@ github_client = Github(GITHUB_TOKEN)
 
 # Initialize backend
 backend = Backend()
+
+# Set up the path to the repository
+repo_path = os.environ.get('REPO_PATH')
+
+vectorstore = load_and_index_git_repository(repo_path)
 
 
 async def review_pull_request(repo_name, pr_number):
@@ -91,10 +101,18 @@ async def review_file(repo, pull_request, file):
         dict: Review results for the file.
     """
     file_content = await get_file_content(repo, pull_request, file['filename'])
+    hunk_diff = file['diff']
+    comments = pull_request.body
+
+    query = "Commit Message:\n" + pull_request.title + "\n\nCommit Diff:" + hunk_diff
+    similar_commits = similarity_search(vectorstore, query)
+
+    similar_commit_texts = "\n\n".join(
+        [commit.page_content for commit in similar_commits])
 
     # Generate a review for the entire file content
     review = await analyze_file_change(file['filename'], file_content,
-                                       file['diff'])
+                                       file['diff'], similar_commit_texts)
 
     return {
         'filename': file['filename'],
@@ -106,7 +124,8 @@ async def review_file(repo, pull_request, file):
     }
 
 
-async def analyze_file_change(filename, file_content, file_diff):
+async def analyze_file_change(filename, file_content, file_diff,
+                              similar_commit_texts):
     """
     Analyze the file changes using the backend.
 
@@ -118,13 +137,16 @@ async def analyze_file_change(filename, file_content, file_diff):
     Returns:
         str: Review results for the file.
     """
-    prompt = ANALYZE_FILE_CHANGE_PROMPT.format(filename=filename,
-                                               file_content=file_content,
-                                               file_diff=file_diff)
+    prompt = ANALYZE_FILE_CHANGE_PROMPT.format(
+        filename=filename,
+        file_content=file_content,
+        file_diff=file_diff,
+        similar_commit_texts=similar_commit_texts)
 
+    logger.info(f"Analyzing file change for {filename}: Prompt:\n{prompt}")
     response = backend.generate(prompt)
     review_text = response.strip()
-    logger.info(f"Analysis for {filename}:\n{review_text}")
+    logger.debug(f"Analysis for {filename}:\n{review_text}")
 
     return review_text
 
@@ -215,12 +237,21 @@ async def analyze_review_comment(repo_name, pr_number, comment_id, path,
     )
 
     commit = repo.get_commit(commit_id)
+    query = "Commit Message:\n" + pull_request.title + "\n\nCommit Diff:" + diff_hunk
+    similar_commits = similarity_search(vectorstore, query)
 
-    prompt = ANALYZE_REVIEW_COMMENT_PROMPT.format(comment_body=comment_body,
-                                                  diff_hunk=diff_hunk)
+    similar_commit_texts = "\n\n".join(
+        [commit.page_content for commit in similar_commits])
+
+    prompt = ANALYZE_REVIEW_COMMENT_PROMPT.format(
+        comment_body=comment_body,
+        diff_hunk=diff_hunk,
+        similar_commit_texts=similar_commit_texts)
+
+    logger.info(f"Prompt for review comment {comment_id}:\n{prompt}")
     response = backend.generate(prompt)
     analysis = response.strip()
-    logger.info(f"Analysis for review comment {comment_id}:\n{analysis}")
+    logger.debug(f"Analysis for review comment {comment_id}:\n{analysis}")
 
     # Post a reply to the comment with the analysis
     pull_request.create_comment(body=analysis,

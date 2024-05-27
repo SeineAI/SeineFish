@@ -1,5 +1,5 @@
 ANALYZE_FILE_CHANGE_PROMPT = """
-Analyze the following file change in {filename}:
+Analyze the following file change in {filename}, based on the similar commits and the code changes:
 Review should be formatted in markdown. Each comment can be cross referenced. 
 The high level review should include the following:
 1. Briefly summarize the changes.
@@ -15,13 +15,17 @@ File content:
 {file_content}
 Changes:
 {file_diff}
+Prior similar commits:
+{similar_commit_texts}
 """
 ANALYZE_FUNCTION_CHANGE_PROMPT = """
-Analyze the following function change in {filename}:
+Analyze the following function change in {filename}, based on the similar commits and the code changes:
 Original function:
 {original_function_code}
 Changes:
 {function_diff}
+Prior similar commits:
+{similar_commit_texts}
 """
 
 ANALYZE_REVIEW_COMMENT_PROMPT = """
