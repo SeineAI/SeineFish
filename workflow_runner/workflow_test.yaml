@@ -1,0 +1,40 @@
+name: CI/CD Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: container
+    container-runtime: podman
+    container-image: ubuntu:20.04
+    bind-mounts:
+      - host: /tmp
+        container: /tmp
+    env:
+      VAR1: value1
+      VAR2: value2
+    steps:
+      - name: Checkout code
+        run: |
+          echo "Checking out code..."
+          
+          
+      - name: Install dependencies
+        run: |
+          echo "Installing dependencies..."
+          apt-get update && apt-get install -y build-essential
+
+      - name: Build
+        run: |
+          echo "Building the code..."
+
+      - name: Test
+        run: |
+          echo "Testing the code..."
+          echo "Var1: "$VAR1
+          echo "Var2: "$VAR2
+          ls /tmp
+
+      - name: Deploy
+        run: |
+          echo "Deploying the code..."

@@ -1,6 +1,7 @@
 ANALYZE_FILE_CHANGE_PROMPT = """
 Analyze the following file change in {filename}, based on the similar commits and the code changes:
 Review should be formatted in markdown. Each comment can be cross referenced. 
+Don't include the diff hunk.
 The high level review should include the following:
 1. Briefly summarize the changes.
 2. What are the potential impacts of these changes? What benefits do they bring?
@@ -20,6 +21,7 @@ Prior similar commits:
 """
 ANALYZE_FUNCTION_CHANGE_PROMPT = """
 Analyze the following function change in {filename}, based on the similar commits and the code changes:
+Don't include the diff hunk.
 Original function:
 {original_function_code}
 Changes:
@@ -30,16 +32,19 @@ Prior similar commits:
 
 ANALYZE_REVIEW_COMMENT_PROMPT = """
 Analyze the following pull request review comment and write output in markdown. 
+Try to use the prior similar commits to provide context.
 Don't forget to reply to the original comments. 
 Don't include the diff hunk.
 Review Comment:
 {comment_body}
 With the diff hunk:
 {diff_hunk}
+Prior similar commits:
+{similar_commit_texts}
 """
 
 ANALYZE_PULL_REQUEST_REVIEW_PROMPT = """
-Analyze the following pull request review:
+Analyze the following pull request review, don't include the diff hunk:
 {review_body}
 """
 
