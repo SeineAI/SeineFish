@@ -6,6 +6,13 @@ A GitHub Webhook that Reviews GitHub Pull Requests
 
 SeineFish is a GitHub webhook designed to automatically review pull requests in your GitHub repositories. It uses AI to analyze code changes, provide feedback, and summarize the review results.
 
+Features:
+- Unlike traditional code review tools, SeineFish reviews the entire file content in pull requests and rates them as "GOOD", "NEEDS FURTHER TRIAGE", or "BAD". It also provides a summary of the review results to help developers quickly understand the quality of their pull requests.
+- SeineFish uses LangChain to select between OpenAI and WatsonX for the language model backend. This allows you to choose the best language model for your specific use case.
+- SeineFish handles `pull_request`, `pull_request_review_comment`, `pull_request_review`, and `pull_request_review_thread` events, providing comprehensive code review capabilities.
+- SeineFish is easy to set up and use. Simply create a GitHub webhook, configure the environment variables, and start the webhook server. You can then test the webhook locally and deploy it to your GitHub repository.
+- SeineFish is able to injest Git commit history and base on similar commits, provide feedback on the pull request.
+
 ## Features
 
 - Handles `pull_request`, `pull_request_review_comment`, `pull_request_review`, and `pull_request_review_thread` events.
@@ -41,6 +48,7 @@ SeineFish is a GitHub webhook designed to automatically review pull requests in 
 4. **Set up environment variables:**
    - Create a `.env` file in the project root directory.
    - Add the following environment variables to the `.env` file:
+
    | Environment Variable    | Value                           |
    |-------------------------|---------------------------------|
    | GITHUB_TOKEN            | <your_github_token>             |
