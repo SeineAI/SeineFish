@@ -143,7 +143,7 @@ async def analyze_file_change(filename, file_content, file_diff,
         file_diff=file_diff,
         similar_commit_texts=similar_commit_texts)
 
-    logger.info(f"Analyzing file change for {filename}: Prompt:\n{prompt}")
+    logger.debug(f"Analyzing file change for {filename}: Prompt:\n{prompt}")
     response = backend.generate(prompt)
     review_text = response.strip()
     logger.debug(f"Analysis for {filename}:\n{review_text}")
@@ -207,7 +207,7 @@ async def analyze_function_change(filename, function_name,
 
     response = backend.generate(prompt)
     review_text = response.strip()
-    logger.info(f"Analysis for {function_name} in {filename}:\n{review_text}")
+    logger.debug(f"Analysis for {function_name} in {filename}:\n{review_text}")
 
     return {'function_name': function_name, 'review': review_text}
 
@@ -228,11 +228,14 @@ async def analyze_review_comment(repo_name, pr_number, comment_id, path,
     comment_body = comment.body
     # exit if @SeineSailor or @SeineFish is not in the comment
     if "@SeineSailor" not in comment_body and "@SeineFish" not in comment_body:
+        logger.info(
+            f"Skipping review comment {comment_id} in {repo_name} #{pr_number} as it does not mention @SeineSailor or @SeineFish"
+        )
         return
     # remove @mentions from the comment body
     comment_body = " ".join(
         filter(lambda x: not x.startswith('@'), comment_body.split()))
-    logger.info(
+    logger.debug(
         f"Analyzing review comment {comment_id} in {repo_name} #{pr_number}:\n{comment_body}"
     )
 
@@ -240,8 +243,10 @@ async def analyze_review_comment(repo_name, pr_number, comment_id, path,
     query = "Commit Message:\n" + pull_request.title + "\n\nCommit Diff:" + diff_hunk
     similar_commits = similarity_search(vectorstore, query)
 
-    similar_commit_texts = "\n\n".join(
-        [commit.page_content for commit in similar_commits])
+    #similar_commit_texts = "\n\n".join(
+    #    [commit.page_content for commit in similar_commits])
+    # it seems if the similar commits are added, the response is very slow or token window exceeded
+    similar_commit_texts = ""
 
     prompt = ANALYZE_REVIEW_COMMENT_PROMPT.format(
         comment_body=comment_body,
@@ -251,7 +256,7 @@ async def analyze_review_comment(repo_name, pr_number, comment_id, path,
     logger.info(f"Prompt for review comment {comment_id}:\n{prompt}")
     response = backend.generate(prompt)
     analysis = response.strip()
-    logger.debug(f"Analysis for review comment {comment_id}:\n{analysis}")
+    logger.info(f"Analysis for review comment {comment_id}:\n{analysis}")
 
     # Post a reply to the comment with the analysis
     pull_request.create_comment(body=analysis,
@@ -276,7 +281,7 @@ async def analyze_pull_request_review(repo_name, pr_number, review_id):
     prompt = ANALYZE_PULL_REQUEST_REVIEW_PROMPT.format(review_body=review_body)
     response = backend.generate(prompt)
     analysis = response.strip()
-    logger.info(f"Analysis for review {review_id}:\n{analysis}")
+    logger.debug(f"Analysis for review {review_id}:\n{analysis}")
 
     # Post a reply to the review with the analysis
     review.create_reply(body=analysis)
@@ -299,7 +304,7 @@ async def analyze_review_thread(repo_name, pr_number, thread_id):
         thread_comments="\n\n".join(thread_comments))
     response = backend.generate(prompt)
     analysis = response.strip()
-    logger.info(f"Analysis for review thread {thread_id}:\n{analysis}")
+    logger.debug(f"Analysis for review thread {thread_id}:\n{analysis}")
 
     # Post a reply to the thread with the analysis
     thread.comments[-1].create_reply(body=analysis)
