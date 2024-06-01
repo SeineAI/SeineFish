@@ -1,6 +1,7 @@
+from flask import Flask, request, redirect, session, jsonify
+import requests
 import os
 import json
-from aiohttp import web
 from options import Options
 from handlers import (
     handle_pull_request_event,
@@ -10,9 +11,26 @@ from handlers import (
 )
 import prompts
 
+import sys
+
+sys.path.append('..')
+from deploy.create_webhook import get_ngrok_url
+
+GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID')
+GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET')
+#WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')
+ngrok_web_addr = os.environ.get(
+    "NGROK_WEB_ADDR")  # e.g. http://localhost:4040/api/tunnels
+ngrok_url = get_ngrok_url(ngrok_web_addr)
+print(f"ngrok_url: {ngrok_url}")
+# Set up the web application
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+
 
 # Define the GitHub webhook handler
-async def handle_github_event(request):
+@app.route('/github-webhook', methods=['POST'])
+async def handle_github_event():
     """
     Handle incoming GitHub webhook events.
 
@@ -22,32 +40,37 @@ async def handle_github_event(request):
     Returns:
         aiohttp.web.Response: The HTTP response.
     """
-    event = await request.json()
+    event = request.json
     event_type = request.headers.get('X-GitHub-Event', 'ping')
 
     if event_type == 'ping':
-        return web.Response(text="Pong")
+        return "Pong", 200
 
     if event_type == 'pull_request':
         await handle_pull_request_event(event)
-        return web.Response(text="Pull request event handled")
+        msg = "Pull request event handled"
+        return msg, 200
 
     if event_type == 'pull_request_review_comment':
         await handle_pull_request_review_comment_event(event)
-        return web.Response(text="Pull request review comment event handled")
+        msg = "Pull request review comment event handled"
+        return msg, 200
 
     if event_type == 'pull_request_review':
         await handle_pull_request_review_event(event)
-        return web.Response(text="Pull request review event handled")
+        msg = "Pull request review event handled"
+        return msg, 200
 
     if event_type == 'pull_request_review_thread':
         await handle_pull_request_review_thread_event(event)
-        return web.Response(text="Pull request review thread event handled")
+        msg = "Pull request review thread event handled"
+        return msg, 200
 
-    return web.Response(status=400, text="Unsupported event")
+    return "Unsupported event", 400
 
 
-async def handle_prompt_update(request):
+@app.route('/update-prompt', methods=['POST'])
+def handle_prompt_update():
     """
     Handle prompt update requests.
 
@@ -58,31 +81,56 @@ async def handle_prompt_update(request):
         aiohttp.web.Response: The HTTP response.
     """
     try:
-        data = await request.json()
+        data = request.json()
         prompt_name = data.get('prompt_name')
         new_prompt = data.get('new_prompt')
 
         if prompt_name and new_prompt:
             if prompt_name in prompts.__dict__:
                 setattr(prompts, prompt_name, new_prompt)
-                return web.Response(
-                    text=f"Prompt '{prompt_name}' updated successfully.",
-                    status=200)
+                return f"Prompt '{prompt_name}' updated successfully.", 200
             else:
-                return web.Response(text=f"Prompt '{prompt_name}' not found.",
-                                    status=404)
+                return f"Prompt '{prompt_name}' not found.", 404
         else:
-            return web.Response(
-                text="Missing 'prompt_name' or 'new_prompt' in request body.",
-                status=400)
+            return "Missing 'prompt_name' or 'new_prompt' in request body.", 400
     except json.JSONDecodeError:
-        return web.Response(text="Invalid JSON in request body.", status=400)
+        return "Invalid JSON in request body.", 400
 
 
-# Set up the web application
-app = web.Application()
-app.router.add_post('/github-webhook', handle_github_event)
-app.router.add_post('/update-prompt', handle_prompt_update)
+@app.route('/callback')
+def handle_callback():
+    code = request.args.get('code')
+    access_token = get_github_access_token(code)
+    session['github_token'] = access_token
+    return 'GitHub authentication successful! You can now set this URL as your GitHub webhook.'
+
+
+@app.route('/')
+def handle_home():
+    return 'Welcome to the GitHub Webhook Service. <a href="/login">Login with GitHub</a>'
+
+
+@app.route('/login')
+def handle_login():
+    github_authorize_url = (
+        f"https://github.com/login/oauth/authorize?client_id={GITHUB_CLIENT_ID}&redirect_uri={ngrok_url}/callback&scope=repo"
+    )
+    return redirect(github_authorize_url)
+
+
+def get_github_access_token(code):
+    url = 'https://github.com/login/oauth/access_token'
+    headers = {'Accept': 'application/json'}
+    data = {
+        'client_id': GITHUB_CLIENT_ID,
+        'client_secret': GITHUB_CLIENT_SECRET,
+        'code': code,
+        'redirect_uri': f"{ngrok_url}/callback",
+    }
+    response = requests.post(url, headers=headers, data=data)
+    response_data = response.json()
+    return response_data.get('access_token')
+
 
 # Define the entry point for the GitHub Action
 if __name__ == '__main__':
@@ -109,4 +157,4 @@ if __name__ == '__main__':
         elif options.github_event_name == 'pull_request_review_thread':
             handle_pull_request_review_thread_event(event)
 
-    web.run_app(app, port=8000)
+    app.run(debug=True, port=8000)
