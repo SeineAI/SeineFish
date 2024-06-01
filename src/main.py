@@ -11,10 +11,18 @@ from handlers import (
 )
 import prompts
 
+import sys
+
+sys.path.append('..')
+from deploy.create_webhook import get_ngrok_url
+
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID')
 GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET')
-WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')
-ngrok_url = ""
+#WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')
+ngrok_web_addr = os.environ.get(
+    "NGROK_WEB_ADDR")  # e.g. http://localhost:4040/api/tunnels
+ngrok_url = get_ngrok_url(ngrok_web_addr)
+print(f"ngrok_url: {ngrok_url}")
 # Set up the web application
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
