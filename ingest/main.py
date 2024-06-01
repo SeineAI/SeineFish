@@ -1,6 +1,5 @@
 import os
-from git_repo_loader import load_and_index_git_repository
-from similarity_search import similarity_search
+from git_repo_loader import load_and_index_git_repository, similarity_search
 
 
 def main():
@@ -16,11 +15,11 @@ def main():
     vectorstore = load_and_index_git_repository(repo_path)
 
     query = "custom git commit loader"
-    results = similarity_search(vectorstore, query)
+    results = similarity_search(query)
 
     for result in results:
         print(result.metadata)
-        print(result.page_content)
+        # print(result.page_content)
 
 
 if __name__ == "__main__":
